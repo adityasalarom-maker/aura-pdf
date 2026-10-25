@@ -1,0 +1,337 @@
+/* ==========================================================================
+   AuraPDF — Modern Ergonomic Design System & 12 Theme Engine
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. The 12 Curated Contrast & Theme Presets
+   -------------------------------------------------------------------------- */
+
+/* 1. Classic Light (Pure Editorial White) */
+.theme-classic-light {
+  --bg-primary: #ffffff;
+  --bg-surface: #f8fafc;
+  --bg-canvas: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-color: rgba(15, 23, 42, 0.08);
+  --accent-color: #f59e0b;
+  --canvas-filter: none;
+  --highlight-default: rgba(250, 204, 21, 0.4);
+}
+
+/* 2. Warm Paper (Book-like soft parchment) */
+.theme-warm-paper {
+  --bg-primary: #fbf0d9;
+  --bg-surface: #f4e5c3;
+  --bg-canvas: #e8d5ae;
+  --text-primary: #2d241e;
+  --text-secondary: #635345;
+  --border-color: rgba(45, 36, 30, 0.1);
+  --accent-color: #d97706;
+  --canvas-filter: sepia(0.3) brightness(0.96) contrast(1.02);
+  --highlight-default: rgba(217, 119, 6, 0.35);
+}
+
+/* 3. Sepia Classic (Vintage Reading) */
+.theme-sepia-classic {
+  --bg-primary: #f4ecd8;
+  --bg-surface: #eae0c8;
+  --bg-canvas: #dcd0b6;
+  --text-primary: #5c4033;
+  --text-secondary: #7f604f;
+  --border-color: rgba(92, 64, 51, 0.12);
+  --accent-color: #b45309;
+  --canvas-filter: sepia(0.65) brightness(0.93) contrast(1.05);
+  --highlight-default: rgba(180, 83, 9, 0.35);
+}
+
+/* 4. Solarized Light (Ethan Schoonover Palette) */
+.theme-solarized-light {
+  --bg-primary: #fdf6e3;
+  --bg-surface: #eee8d5;
+  --bg-canvas: #dfd8c2;
+  --text-primary: #657b83;
+  --text-secondary: #586e75;
+  --border-color: rgba(101, 123, 131, 0.12);
+  --accent-color: #268bd2;
+  --canvas-filter: sepia(0.25) hue-rotate(5deg) brightness(0.97);
+  --highlight-default: rgba(38, 139, 210, 0.3);
+}
+
+/* 5. Solarized Dark */
+.theme-solarized-dark {
+  --bg-primary: #002b36;
+  --bg-surface: #073642;
+  --bg-canvas: #001f27;
+  --text-primary: #839496;
+  --text-secondary: #93a1a1;
+  --border-color: rgba(131, 148, 150, 0.15);
+  --accent-color: #2aa198;
+  --canvas-filter: invert(0.9) hue-rotate(180deg) brightness(0.9) contrast(1.1);
+  --highlight-default: rgba(42, 161, 152, 0.4);
+}
+
+/* 6. Slate Gray (Balanced Cool Night - Default) */
+.theme-slate {
+  --bg-primary: #1e222a;
+  --bg-surface: #282c34;
+  --bg-canvas: #16181e;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --border-color: rgba(226, 232, 240, 0.1);
+  --accent-color: #f59e0b;
+  --canvas-filter: invert(0.88) hue-rotate(180deg) contrast(1.08) brightness(0.92);
+  --highlight-default: rgba(245, 158, 11, 0.4);
+}
+
+/* 7. True Pitch OLED Black (Battery Saver & Extreme Night) */
+.theme-oled-black {
+  --bg-primary: #000000;
+  --bg-surface: #101010;
+  --bg-canvas: #000000;
+  --text-primary: #ededed;
+  --text-secondary: #888888;
+  --border-color: rgba(255, 255, 255, 0.12);
+  --accent-color: #ffffff;
+  --canvas-filter: invert(1) contrast(1.15) brightness(0.88);
+  --highlight-default: rgba(255, 255, 255, 0.35);
+}
+
+/* 8. Forest Green Tint (Relaxed Eye Reading) */
+.theme-forest-green {
+  --bg-primary: #121c15;
+  --bg-surface: #1a281f;
+  --bg-canvas: #0b120d;
+  --text-primary: #c5d8c9;
+  --text-secondary: #8fa995;
+  --border-color: rgba(197, 216, 201, 0.12);
+  --accent-color: #10b981;
+  --canvas-filter: invert(0.88) sepia(0.4) hue-rotate(85deg) contrast(1.1);
+  --highlight-default: rgba(16, 185, 129, 0.4);
+}
+
+/* 9. Soft Amber Night (Circadian Blue-Blocker) */
+.theme-soft-amber {
+  --bg-primary: #18110b;
+  --bg-surface: #241a12;
+  --bg-canvas: #0e0906;
+  --text-primary: #e6a86c;
+  --text-secondary: #b37e4c;
+  --border-color: rgba(230, 168, 108, 0.15);
+  --accent-color: #f97316;
+  --canvas-filter: invert(0.9) sepia(0.8) hue-rotate(-20deg) contrast(1.15);
+  --highlight-default: rgba(249, 115, 22, 0.45);
+}
+
+/* 10. Cool Charcoal (Modern Developer Dark) */
+.theme-cool-charcoal {
+  --bg-primary: #1f232b;
+  --bg-surface: #2a2f3a;
+  --bg-canvas: #15181e;
+  --text-primary: #dbe0ea;
+  --text-secondary: #8c95a5;
+  --border-color: rgba(219, 224, 234, 0.1);
+  --accent-color: #6366f1;
+  --canvas-filter: invert(0.87) hue-rotate(190deg) contrast(1.05);
+  --highlight-default: rgba(99, 102, 241, 0.4);
+}
+
+/* 11. Cyberpunk High-Contrast (Vibrant Neon) */
+.theme-cyberpunk {
+  --bg-primary: #0a0b10;
+  --bg-surface: #141724;
+  --bg-canvas: #050608;
+  --text-primary: #00ffcc;
+  --text-secondary: #ff007f;
+  --border-color: rgba(0, 255, 204, 0.2);
+  --accent-color: #ff007f;
+  --canvas-filter: invert(0.95) hue-rotate(150deg) contrast(1.3);
+  --highlight-default: rgba(255, 0, 127, 0.5);
+}
+
+/* 12. Pastel Muted Lavender (Gentle Soft Purple) */
+.theme-pastel-muted {
+  --bg-primary: #f5f2f8;
+  --bg-surface: #ebe4f2;
+  --bg-canvas: #ddd3e6;
+  --text-primary: #3c3247;
+  --text-secondary: #6e5f80;
+  --border-color: rgba(60, 50, 71, 0.1);
+  --accent-color: #8b5cf6;
+  --canvas-filter: sepia(0.15) hue-rotate(240deg) brightness(0.98);
+  --highlight-default: rgba(139, 92, 246, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   2. Base Application Styling & CSS Variable Binding
+   -------------------------------------------------------------------------- */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.bg-surface {
+  background-color: var(--bg-surface);
+}
+
+.bg-app-canvas {
+  background-color: var(--bg-canvas);
+}
+
+.border-divider {
+  border-color: var(--border-color);
+}
+
+.app-header {
+  background-color: var(--bg-surface);
+  border-color: var(--border-color);
+}
+
+/* Apply dynamic canvas filter for PDF original layout pages */
+#pdfCanvas {
+  filter: var(--canvas-filter);
+  transition: filter 0.3s ease;
+}
+
+/* Active Mode / Format Tabs */
+.active-mode {
+  background-color: var(--accent-color);
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.active-format {
+  background-color: var(--accent-color);
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+.active-lh {
+  background-color: var(--accent-color);
+  color: #ffffff !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Multilingual Typography & Devanagari (Hindi) Ligature Optimization
+   -------------------------------------------------------------------------- */
+.font-hindi {
+  font-family: 'Noto Sans Devanagari', 'Inter', system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+   4. PDF.js Transparent Text Selection Layer
+   -------------------------------------------------------------------------- */
+.textLayer {
+  position: absolute;
+  text-align: initial;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1.0;
+  pointer-events: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.textLayer span,
+.textLayer br {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+/* Browser Selection Highlight Styling */
+.textLayer ::selection {
+  background: var(--highlight-default, rgba(245, 158, 11, 0.45));
+  color: transparent;
+}
+
+/* --------------------------------------------------------------------------
+   5. In-App Highlighting Overlay
+   -------------------------------------------------------------------------- */
+.user-highlight-mark {
+  background-color: var(--highlight-color, rgba(250, 204, 21, 0.45));
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.user-highlight-mark:hover {
+  opacity: 0.8;
+}
+
+/* --------------------------------------------------------------------------
+   6. Custom Sleek Scrollbars
+   -------------------------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   8. Viewport Scrolling, Floating Pill Removal & Reflow Typography
+   -------------------------------------------------------------------------- */
+#floatingControlsPill,
+.floating-pill-menu {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+#pdfScrollContainer {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.reflow-paragraph {
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+  -moz-hyphens: none !important;
+  -ms-hyphens: none !important;
+  text-wrap: pretty;
+  letter-spacing: 0.01em;
+  transition: font-size 0.15s ease, line-height 0.15s ease;
+}
+
+/* Generous bottom blank portion (22rem / 350px) so text leaves lower screen blank */
+#reflowWrapper {
+  padding-bottom: 22rem !important;
+  box-sizing: border-box;
+}
+
+#reflowContent {
+  margin-bottom: 6rem !important;
+}
+
+#zoomToast.show {
+  opacity: 1;
+  transform: translate(-50%, 4px);
+}
+
+

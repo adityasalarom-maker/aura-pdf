@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+  <title>AuraPDF — Intelligent Multilingual PDF Reader & Obsidian Capture</title>
+  <meta name="description" content="Personal, local-first intelligent PDF reader with Hindi & English reflow, on-device OCR, 12 ergonomic themes, and frictionless Obsidian note clipping.">
+  <meta name="theme-color" content="#1e222a">
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Typography: Inter + Noto Sans Devanagari for perfect Hindi & English ligatures -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans Devanagari', 'system-ui', 'sans-serif'],
+            hindi: ['Noto Sans Devanagari', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- PDF.js v3.11.174 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  </script>
+
+  <!-- Tesseract.js v5 for Browser On-Device OCR (Hindi + English) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- Moment.js for Precise Timestamps & Relative Formatting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+
+  <!-- Custom Stylesheets (With Cache-Busting v=6) -->
+  <link rel="stylesheet" href="style.css?v=6">
+</head>
+<body class="theme-slate overflow-hidden select-none h-screen w-screen flex flex-col font-sans" id="appBody">
+
+  <!-- TOP HEADER / TOOLBAR (Vertical height decreased by 30% to ultra-compact h-8 / 32px) -->
+  <header class="app-header h-8 border-b flex items-center justify-between px-2.5 md:px-3 shrink-0 z-30 transition-colors duration-200">
+    <!-- Left Section: Branding & Navigation Toggle -->
+    <div class="flex items-center space-x-1.5">
+      <button id="btnToggleSidebar" class="header-btn p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors" title="Toggle Sidebar">
+        <i data-lucide="panel-left" class="w-3.5 h-3.5"></i>
+      </button>
+      
+      <div class="flex items-center space-x-1.5">
+        <div class="w-5 h-5 rounded bg-gradient-to-tr from-amber-500 to-indigo-600 flex items-center justify-center text-white font-bold text-[10px] shadow-sm">
+          अA
+        </div>
+        <div class="hidden sm:block">
+          <h1 id="docTitleDisplay" class="text-[11px] font-semibold truncate max-w-[120px] md:max-w-xs lg:max-w-md leading-tight">No Document Open</h1>
+          <p id="docPageStats" class="text-[9px] opacity-60 leading-none">Ready</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Section: View Mode & Reading Controls -->
+    <div class="flex items-center space-x-1 sm:space-x-1.5">
+      <!-- Open PDF Button -->
+      <label class="header-btn flex items-center space-x-1 px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-600 text-white font-medium text-[11px] cursor-pointer shadow-sm transition-transform active:scale-95">
+        <i data-lucide="folder-open" class="w-3 h-3"></i>
+        <span class="hidden md:inline">Open PDF</span>
+        <input type="file" id="pdfFileInput" accept="application/pdf" class="hidden">
+      </label>
+
+      <!-- View Mode Switcher: Original vs Reflow (Visible on all devices including mobile) -->
+      <div class="flex items-center bg-black/5 dark:bg-white/5 p-0.5 rounded border border-black/10 dark:border-white/10 text-[11px]">
+        <button id="btnModeOriginal" class="mode-tab px-1.5 py-0.5 rounded active-mode font-medium transition-all flex items-center space-x-1 text-[11px]">
+          <i data-lucide="file-text" class="w-2.5 h-2.5"></i>
+          <span>Original</span>
+        </button>
+        <button id="btnModeReflow" class="mode-tab px-1.5 py-0.5 rounded opacity-70 hover:opacity-100 font-medium transition-all flex items-center space-x-1 text-[11px]">
+          <i data-lucide="align-left" class="w-2.5 h-2.5"></i>
+          <span>Reflow</span>
+        </button>
+      </div>
+
+      <!-- OCR Trigger Button -->
+      <button id="btnTriggerOCR" class="header-btn flex items-center space-x-1 px-1.5 py-0.5 rounded border border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 text-[11px] font-medium transition-colors" title="Run Hindi & English OCR on Scanned Page">
+        <i data-lucide="scan" class="w-3 h-3 text-amber-500"></i>
+        <span class="hidden lg:inline">OCR</span>
+      </button>
+    </div>
+
+    <!-- Right Section: Themes, Mobile Link, Obsidian Vault Status & Menu -->
+    <div class="flex items-center space-x-1">
+      <!-- Mobile S25 Ultra Wi-Fi Link Button -->
+      <button id="btnMobileLink" class="header-btn flex items-center space-x-1 px-1.5 py-0.5 rounded border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-300 text-[11px] font-medium transition-colors" title="Connect Galaxy S25 Ultra (Wi-Fi & Cloud)">
+        <i data-lucide="smartphone" class="w-3 h-3"></i>
+        <span class="hidden lg:inline text-[10px]">Phone Link</span>
+      </button>
+
+      <!-- 12 Theme Preset Picker Button -->
+      <button id="btnThemeSelector" class="header-btn p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors" title="Theme & Contrast Presets (12 Types)">
+        <i data-lucide="palette" class="w-3.5 h-3.5"></i>
+      </button>
+
+      <!-- Obsidian Vault Connector Button -->
+      <button id="btnObsidianVault" class="header-btn flex items-center space-x-1 px-1.5 py-0.5 rounded border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 text-[11px] font-medium transition-colors" title="Obsidian Vault ('AI notes')">
+        <i data-lucide="book-marked" class="w-3 h-3"></i>
+        <span class="hidden md:inline text-[10px]" id="vaultStatusText">AI notes</span>
+      </button>
+
+      <!-- Sidebar Right: Notes & Clips Drawer -->
+      <button id="btnToggleClipsDrawer" class="header-btn p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors relative" title="Obsidian Clips & Notes History">
+        <i data-lucide="file-output" class="w-3.5 h-3.5"></i>
+        <span id="clipBadge" class="hidden absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Sidebar Backdrop Overlay -->
+  <div id="sidebarBackdrop" class="hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-xs md:hidden"></div>
+
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- LEFT DRAWER / SIDEBAR (Width reduced to w-[205px], with mobile overlay support) -->
+    <aside id="leftSidebar" class="sidebar-drawer absolute md:relative top-0 left-0 bottom-0 w-[205px] min-w-[205px] max-w-[205px] border-r z-40 flex flex-col bg-surface shadow-2xl md:shadow-none transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0">
+      <!-- Mobile Close Header -->
+      <div class="flex items-center justify-between px-2.5 py-1 border-b md:hidden shrink-0 bg-black/5 dark:bg-white/5">
+        <span class="text-[10px] font-semibold text-amber-500 flex items-center space-x-1">
+          <i data-lucide="panel-left" class="w-3 h-3"></i>
+          <span>Sidebar Menu</span>
+        </span>
+        <button id="btnCloseSidebarMobile" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10" title="Close Sidebar">
+          <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+
+      <!-- Sidebar Tabs Header (Vertical height decreased to compact py-1) -->
+      <div class="flex border-b text-[10px] font-medium border-divider shrink-0">
+        <button class="sidebar-tab flex-1 py-1 text-center border-b-2 border-amber-500 font-semibold" data-tab="tabTOC" title="Table of Contents">
+          <i data-lucide="list-tree" class="w-3 h-3 inline"></i>
+        </button>
+        <button class="sidebar-tab flex-1 py-1 text-center opacity-70 hover:opacity-100" data-tab="tabSidebarReflow" title="Page Reflow View (Hindi & English)">
+          <i data-lucide="align-left" class="w-3 h-3 inline"></i>
+          <span class="ml-0.5 font-hindi font-bold">अ/En</span>
+        </button>
+        <button class="sidebar-tab flex-1 py-1 text-center opacity-70 hover:opacity-100" data-tab="tabBookmarks" title="Bookmarks & Highlights">
+          <i data-lucide="bookmark" class="w-3 h-3 inline"></i>
+        </button>
+        <button class="sidebar-tab flex-1 py-1 text-center opacity-70 hover:opacity-100" data-tab="tabLibrary" title="Document Library">
+          <i data-lucide="library" class="w-3 h-3 inline"></i>
+      </div>
+
+      <!-- Sidebar Tab Panels -->
+      <div class="flex-1 overflow-y-auto p-2.5 space-y-2 text-xs" id="sidebarContent">
+        <!-- Panel 1: Table of Contents -->
+        <div id="tabTOC" class="tab-panel space-y-1">
+          <p class="text-[10px] opacity-50 px-1 py-0.5">Document Outline</p>
+          <div id="tocContainer" class="space-y-0.5">
+            <div class="text-center py-8 opacity-40 text-xs">No outline available.</div>
+          </div>
+        </div>
+
+        <!-- Panel 2: Sidebar Reflow Reader (Shows reflowed Hindi & English text inside left panel!) -->
+        <div id="tabSidebarReflow" class="tab-panel hidden space-y-2">
+          <div class="flex items-center justify-between pb-1 border-b border-divider">
+            <span class="text-[10px] font-semibold uppercase tracking-wider opacity-60">Sidebar Reflow Reader</span>
+            <span id="sidebarReflowPageLabel" class="text-[10px] font-mono text-amber-500">Page 1</span>
+          </div>
+          <div id="sidebarReflowContent" class="space-y-2 text-xs leading-relaxed font-hindi overflow-y-auto">
+            <div class="text-center py-8 opacity-40 text-xs">
+              <i data-lucide="align-left" class="w-6 h-6 mx-auto mb-1 opacity-50"></i>
+              <p>Load a PDF to view reflowed text in this panel.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 3: Bookmarks & Highlights -->
+        <div id="tabBookmarks" class="tab-panel hidden space-y-2.5">
+          <div class="flex items-center justify-between pb-1.5 border-b border-divider">
+            <span class="text-[10px] font-semibold uppercase tracking-wider opacity-60">Bookmarks</span>
+            <button id="btnAddBookmark" class="px-1.5 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] flex items-center space-x-1">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+              <span>Add</span>
+            </button>
+          </div>
+          <div id="bookmarksList" class="space-y-1">
+            <div class="text-center py-4 opacity-40 text-xs">No bookmarks yet.</div>
+          </div>
+
+          <div class="pt-2 border-t border-divider">
+            <span class="text-[10px] font-semibold uppercase tracking-wider opacity-60 block mb-1.5">Highlights</span>
+            <div id="highlightsList" class="space-y-1">
+              <div class="text-center py-4 opacity-40 text-xs">No highlights made yet.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel 4: Document Library & Recent Documents -->
+        <div id="tabLibrary" class="tab-panel hidden space-y-2">
+          <div class="flex items-center justify-between pb-1.5 border-b border-divider">
+            <span class="text-[10px] font-semibold uppercase tracking-wider opacity-60">Recent Docs</span>
+            <button id="btnClearLibrary" class="text-[10px] opacity-50 hover:opacity-100 text-red-500">Clear</button>
+          </div>
+          <div id="libraryList" class="space-y-1.5">
+            <div class="text-center py-6 opacity-40 text-xs">No documents in library.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RELOCATED READING & ZOOM CONTROLS (Moved below left side panel so it never covers PDF text!) -->
+      <div id="sidebarControlsDock" class="p-2 border-t border-divider bg-black/5 dark:bg-white/5 space-y-1.5 shrink-0">
+        <!-- Page Navigation -->
+        <div class="flex items-center justify-between">
+          <button id="btnPrevPage" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30" title="Previous Page (Wheel Scroll Up)">
+            <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          </button>
+          <div class="flex items-center space-x-1 text-xs">
+            <span class="text-[10px] opacity-50">Pg</span>
+            <input type="number" id="inputCurrentPage" value="1" min="1" class="w-10 text-center bg-surface border border-divider rounded py-0.5 font-mono text-xs focus:outline-none focus:border-amber-500">
+            <span class="opacity-40">/</span>
+            <span id="totalPagesLabel" class="opacity-70 font-mono text-xs">1</span>
+          </div>
+          <button id="btnNextPage" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 disabled:opacity-30" title="Next Page (Wheel Scroll Down)">
+            <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Zoom Controls with Clickable % Icon/Button -->
+        <div class="flex items-center justify-between pt-1 border-t border-divider/40">
+          <button id="btnZoomOut" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10" title="Zoom Out">
+            <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+          </button>
+
+          <!-- Clickable Zoom Percentage Button (Cycles 100% -> 125% -> 150% -> 200% -> 75%) -->
+          <button id="btnZoomPercentage" class="font-mono text-xs px-2 py-0.5 rounded bg-black/5 dark:bg-white/5 hover:bg-amber-500/20 hover:text-amber-500 font-semibold transition-colors" title="Click to cycle zoom presets">
+            <span id="zoomPercentageLabel">125%</span>
+          </button>
+
+          <button id="btnZoomIn" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10" title="Zoom In">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          </button>
+          
+          <button id="btnFitWidth" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10" title="Fit to Width">
+            <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="btnFitPage" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10" title="Fit Entire Page">
+            <i data-lucide="shrink" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Sidebar Footer: Session & Clock -->
+      <div class="p-2 border-t border-divider text-[10px] opacity-70 flex justify-between items-center bg-black/5 dark:bg-white/5 shrink-0">
+        <span id="sessionDuration">Session: 0 min</span>
+        <span id="currentTimeDisplay">--:--</span>
+      </div>
+    </aside>
+    <!-- CENTER VIEWPORT (The PDF Reading Canvas or Reflow Area) -->
+    <main class="flex-1 flex flex-col overflow-hidden relative" id="viewportContainer">
+
+      <!-- OCR Status Banner (Shown during active OCR) -->
+      <div id="ocrProgressBanner" class="hidden absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-surface/90 backdrop-blur-md border border-amber-500/40 rounded-xl px-3 py-1.5 shadow-xl flex items-center space-x-2 text-xs">
+        <div class="w-3.5 h-3.5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+        <div>
+          <p class="font-medium text-amber-500 text-xs" id="ocrProgressTitle">Running On-Device OCR...</p>
+          <p class="text-[10px] opacity-70" id="ocrProgressStatus">Initializing models</p>
+        </div>
+        <button id="btnCancelOCR" class="text-[11px] text-red-400 hover:text-red-500 ml-2 font-medium">Cancel</button>
+      </div>
+
+      <!-- Reflow Mode Typography Controls Bar (Compact h-6 / 24px height - 30% reduction) -->
+      <div id="reflowControlsBar" class="hidden border-b border-divider px-2.5 py-0 flex items-center justify-between text-[10px] h-6 bg-surface/80 backdrop-blur-md z-10 shrink-0">
+        <div class="flex items-center space-x-2">
+          <span class="opacity-60 font-medium">Typography:</span>
+          <!-- Font Size Slider -->
+          <div class="flex items-center space-x-1">
+            <button id="btnReflowFontDecrease" class="px-1 py-0 rounded hover:bg-black/10 dark:hover:bg-white/10 font-bold text-[10px]">A-</button>
+            <span id="reflowFontSizeLabel" class="w-7 text-center font-mono font-medium text-[10px]">23px</span>
+            <button id="btnReflowFontIncrease" class="px-1 py-0 rounded hover:bg-black/10 dark:hover:bg-white/10 font-bold text-[10px]">A+</button>
+          </div>
+
+          <!-- Line Height Selector -->
+          <div class="hidden sm:flex items-center space-x-1 pl-1.5 border-l border-divider">
+            <span class="opacity-50 text-[9px]">Spacing:</span>
+            <button class="btn-line-height px-1 py-0 rounded text-[9px] font-mono hover:bg-black/10 dark:hover:bg-white/10" data-lh="1.5">1.5x</button>
+            <button class="btn-line-height px-1 py-0 rounded text-[9px] font-mono hover:bg-black/10 dark:hover:bg-white/10 active-lh" data-lh="1.75">1.75x</button>
+            <button class="btn-line-height px-1 py-0 rounded text-[9px] font-mono hover:bg-black/10 dark:hover:bg-white/10" data-lh="2.0">2.0x</button>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-1.5">
+          <span class="text-[9px] opacity-60">Hindi Ligatures Active</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </div>
+      </div>
+
+      <!-- Quick Zoom Visual Toast (Pops up when clicking % or +/- to confirm visual change) -->
+      <div id="zoomToast" class="pointer-events-none fixed top-12 left-1/2 -translate-x-1/2 z-50 bg-black/80 text-white font-mono text-xs px-3 py-1 rounded-full shadow-lg opacity-0 transition-opacity duration-200">
+        Zoom: 125%
+      </div>
+
+      <!-- Scrollable PDF Canvas Viewport -->
+      <div id="pdfScrollContainer" class="flex-1 overflow-y-auto overflow-x-hidden relative flex justify-center p-2 sm:p-4 bg-app-canvas">
+        <!-- Empty / Dropzone State (Visible when no document is active) -->
+        <div id="dropzoneEmptyState" class="m-auto max-w-md w-full p-6 sm:p-8 rounded-2xl border-2 border-dashed border-divider text-center space-y-3 bg-surface/50 backdrop-blur-sm transition-all hover:border-amber-500/50">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500/20 to-indigo-600/20 text-amber-500 flex items-center justify-center mx-auto text-xl font-bold shadow-inner">
+            <i data-lucide="file-up" class="w-7 h-7"></i>
+          </div>
+          <div>
+            <h2 class="text-sm font-semibold">Drop Any PDF Here</h2>
+            <p class="text-xs opacity-60 mt-1">Full support for English & Hindi scripts, scanned and digital PDFs</p>
+          </div>
+          <label class="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs cursor-pointer shadow-md transition-transform active:scale-95">
+            <i data-lucide="folder-open" class="w-3.5 h-3.5"></i>
+            <span>Browse PDF Files</span>
+            <input type="file" id="dropzoneFileInput" accept="application/pdf" class="hidden">
+          </label>
+        </div>
+
+        <!-- Original Canvas Wrapper -->
+        <div id="canvasWrapper" class="hidden relative shadow-2xl transition-all duration-150 origin-top">
+          <canvas id="pdfCanvas" class="block rounded-sm transition-all duration-200"></canvas>
+          <!-- Transparent Selectable Text Layer -->
+          <div id="textLayer" class="textLayer absolute top-0 left-0 right-0 bottom-0 pointer-events-auto"></div>
+        </div>
+
+        <!-- Reflow Document Wrapper (Blank portion increased by 10% to ~78-80% text width, with generous pb-72 bottom blank reading space) -->
+        <div id="reflowWrapper" class="hidden w-full max-w-4xl md:w-[78%] lg:w-[80%] px-4 sm:px-8 py-6 mx-auto leading-relaxed font-hindi transition-all pb-72 min-h-[85vh]">
+          <div id="reflowContent" class="space-y-4 mb-20">
+            <!-- Dynamically populated formatted text or scanned page view -->
+          </div>
+        </div>
+      </div>
+
+      <!-- MOBILE S25 ULTRA BOTTOM BAR (Portrait Optimized with Reflow, Pixel/Font Size, Zoom & Collapsible Sidebar Popup) -->
+      <nav id="mobileBottomBar" class="md:hidden h-14 border-t border-divider bg-surface/95 backdrop-blur-lg grid grid-cols-8 items-center px-1 z-20 shrink-0">
+        <!-- 1. Collapsible Sidebar Popup / Menu -->
+        <button id="mBtnSidebar" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100 hover:text-amber-500" title="Table of Contents & Sidebar">
+          <i data-lucide="panel-left" class="w-4 h-4"></i>
+          <span class="leading-none mt-0.5">Menu</span>
+        </button>
+
+        <!-- 2. Prev Page -->
+        <button id="mBtnPrevPage" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100" title="Previous Page">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+          <span class="leading-none mt-0.5">Prev</span>
+        </button>
+        
+        <!-- 3. Page Indicator / Jump -->
+        <button id="mBtnPageJump" class="flex flex-col items-center justify-center p-1 text-[9px] font-mono text-amber-500 font-semibold" title="Jump to Page">
+          <span id="mPageDisplay" class="text-[11px] leading-tight">1 / 1</span>
+          <span class="text-[8px] opacity-70 leading-none">Pg</span>
+        </button>
+
+        <!-- 4. Next Page -->
+        <button id="mBtnNextPage" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100" title="Next Page">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+          <span class="leading-none mt-0.5">Next</span>
+        </button>
+
+        <!-- 5. Text Reflow Toggle Icon -->
+        <button id="mBtnModeToggle" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100 hover:text-amber-500" title="Toggle Text Reflow / Original">
+          <i data-lucide="align-left" class="w-4 h-4"></i>
+          <span id="mModeLabel" class="leading-none mt-0.5">Reflow</span>
+        </button>
+
+        <!-- 6. Pixel / Font Size Change Icon (Cycles 15px -> 18px -> 22px -> 26px -> 30px) -->
+        <button id="mBtnFontSize" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100 hover:text-amber-500" title="Cycle Font Pixel Size">
+          <i data-lucide="type" class="w-4 h-4"></i>
+          <span id="mFontSizeLabel" class="leading-none mt-0.5">23px</span>
+        </button>
+
+        <!-- 7. Zoom Change Icon (Cycles 100% -> 125% -> 150% -> 200% -> 75%) -->
+        <button id="mBtnZoom" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100 hover:text-amber-500" title="Cycle Zoom Scale">
+          <i data-lucide="zoom-in" class="w-4 h-4"></i>
+          <span id="mZoomLabel" class="leading-none mt-0.5">125%</span>
+        </button>
+
+        <!-- 8. Reading Themes -->
+        <button id="mBtnThemes" class="flex flex-col items-center justify-center p-1 text-[9px] opacity-80 active:opacity-100 hover:text-amber-500" title="Switch Theme">
+          <i data-lucide="palette" class="w-4 h-4"></i>
+          <span class="leading-none mt-0.5">Theme</span>
+        </button>
+      </nav>
+    </main>
+
+    <!-- RIGHT DRAWER: OBSIDIAN NOTES & RECENT CLIPS -->
+    <aside id="rightClipsDrawer" class="absolute top-0 right-0 bottom-0 w-80 max-w-[85vw] border-l border-divider z-20 flex flex-col bg-surface transition-transform duration-300 ease-in-out translate-x-full">
+      <!-- Drawer Header -->
+      <div class="p-3 border-b border-divider flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="book-marked" class="w-4 h-4 text-purple-500"></i>
+          <span class="font-semibold text-xs uppercase tracking-wide">Obsidian Note Clips</span>
+        </div>
+        <button id="btnCloseClipsDrawer" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Active Destination File Box -->
+      <div class="p-3 bg-purple-500/10 border-b border-purple-500/20 text-xs">
+        <div class="flex items-center justify-between text-purple-700 dark:text-purple-300 mb-1">
+          <span class="font-semibold text-[11px] uppercase tracking-wider">Active Target File:</span>
+          <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 font-mono">Vault: AI notes</span>
+        </div>
+        <div class="flex items-center space-x-1.5">
+          <i data-lucide="file-code" class="w-4 h-4 text-purple-500 shrink-0"></i>
+          <input type="text" id="activeTargetFileName" value="Research Notes.md" class="w-full bg-surface border border-divider rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-purple-500">
+        </div>
+      </div>
+
+      <!-- List of Captured Clips in this session -->
+      <div class="flex-1 overflow-y-auto p-3 space-y-2 text-xs" id="clipsHistoryContainer">
+        <div class="text-center py-12 opacity-40">
+          <i data-lucide="copy" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+          <p>No clips saved yet.</p>
+          <p class="text-[11px] mt-1">Select any text in PDF to clip to Obsidian.</p>
+        </div>
+      </div>
+
+      <!-- Quick Export / Clear -->
+      <div class="p-3 border-t border-divider flex justify-between items-center text-xs">
+        <button id="btnExportAllClips" class="px-2.5 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white font-medium flex items-center space-x-1">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
+          <span>Download All (.md)</span>
+        </button>
+        <button id="btnClearClips" class="text-xs opacity-50 hover:opacity-100 text-red-400">Clear</button>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- CONTEXTUAL FLOATING QUICK-CAPTURE POP-UP (Appears right next to selected text) -->
+  <div id="selectionPopup" class="hidden fixed z-50 rounded-xl bg-surface/95 backdrop-blur-xl border border-divider shadow-2xl p-3 w-80 text-xs transition-all duration-150 transform scale-95 opacity-0">
+    <div class="flex items-center justify-between pb-2 border-b border-divider mb-2">
+      <div class="flex items-center space-x-1.5 text-amber-500 font-semibold text-[11px] uppercase tracking-wide">
+        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+        <span>Capture to Obsidian</span>
+      </div>
+      <button id="btnClosePopup" class="p-0.5 rounded hover:bg-black/10 dark:hover:bg-white/10 opacity-70 hover:opacity-100">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+
+    <!-- Text Preview -->
+    <div class="bg-black/5 dark:bg-white/5 rounded p-2 mb-2 max-h-20 overflow-y-auto font-hindi text-[11px] leading-relaxed border border-divider">
+      <p id="selectionPreviewText" class="opacity-80 italic">Selected text preview...</p>
+    </div>
+
+    <!-- Format Tabs (Markdown, Clean Plain Text, As-Is) -->
+    <div class="flex bg-black/5 dark:bg-white/5 p-0.5 rounded-lg border border-divider mb-2 text-[10px] font-medium">
+      <button class="clip-format-tab flex-1 py-1 text-center rounded active-format" data-format="markdown">Markdown (.md)</button>
+      <button class="clip-format-tab flex-1 py-1 text-center rounded opacity-70 hover:opacity-100" data-format="txt">Plain Text</button>
+      <button class="clip-format-tab flex-1 py-1 text-center rounded opacity-70 hover:opacity-100" data-format="asis">As-Is Copy</button>
+    </div>
+
+    <!-- Target File Selector & Search -->
+    <div class="space-y-1.5 mb-3">
+      <div class="flex items-center justify-between text-[10px] opacity-70">
+        <span>Target File (Vault: AI notes):</span>
+        <button id="btnNewTargetFilePrompt" class="text-purple-500 hover:underline">+ New File</button>
+      </div>
+      <div class="relative">
+        <i data-lucide="search" class="w-3 h-3 absolute left-2 top-2 opacity-50"></i>
+        <input type="text" id="popupTargetSearch" placeholder="Search or type filename..." value="Research Notes.md" class="w-full bg-surface border border-divider rounded pl-7 pr-2 py-1 text-[11px] font-mono focus:outline-none focus:border-amber-500">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center space-x-2">
+      <button id="btnExecuteClip" class="flex-1 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold text-xs flex items-center justify-center space-x-1 shadow-md transition-transform active:scale-95">
+        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+        <span>Save Clip</span>
+      </button>
+
+      <!-- Multi-color Highlight Action -->
+      <div class="flex items-center space-x-1 bg-black/5 dark:bg-white/5 p-1 rounded-lg border border-divider">
+        <button class="color-highlight-btn w-4 h-4 rounded-full bg-yellow-400 hover:scale-110 transition-transform" data-color="#facc15" title="Yellow Highlight"></button>
+        <button class="color-highlight-btn w-4 h-4 rounded-full bg-emerald-400 hover:scale-110 transition-transform" data-color="#34d399" title="Green Highlight"></button>
+        <button class="color-highlight-btn w-4 h-4 rounded-full bg-blue-400 hover:scale-110 transition-transform" data-color="#60a5fa" title="Blue Highlight"></button>
+        <button class="color-highlight-btn w-4 h-4 rounded-full bg-pink-400 hover:scale-110 transition-transform" data-color="#f472b6" title="Pink Highlight"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12 THEMES MODAL / BOTTOM SHEET -->
+  <div id="themeModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 transition-opacity">
+    <div class="bg-surface border border-divider w-full md:max-w-lg rounded-t-2xl md:rounded-2xl p-5 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-2 border-b border-divider">
+        <div>
+          <h3 class="font-semibold text-sm">Visual Ergonomics & Color Schemes</h3>
+          <p class="text-[11px] opacity-60">12 tailored contrast schemes with Hindi legibility tuning</p>
+        </div>
+        <button id="btnCloseThemeModal" class="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- 12 Themes Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5" id="themesGrid">
+        <!-- Injected dynamically by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- SMART OPEN LAUNCHER PROMPT (Resume Session vs Fresh Start) -->
+  <div id="smartOpenModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface border border-divider max-w-md w-full rounded-2xl p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center space-x-3 text-amber-500">
+        <i data-lucide="book-open" class="w-6 h-6"></i>
+        <h3 class="font-bold text-base text-current">Smart Resume Document</h3>
+      </div>
+      <p class="text-xs opacity-80 leading-relaxed" id="smartOpenDocMessage">
+        You previously read this document. Would you like to resume your reading session or start fresh from the first page?
+      </p>
+
+      <div class="p-3 bg-black/5 dark:bg-white/5 rounded-xl border border-divider text-xs space-y-1 font-mono">
+        <div class="flex justify-between"><span class="opacity-60">Last Read Page:</span><span id="soLastPageVal" class="font-bold text-amber-500">Page 12</span></div>
+        <div class="flex justify-between"><span class="opacity-60">Last Active Scheme:</span><span id="soLastSchemeVal">Sepia Classic</span></div>
+        <div class="flex justify-between"><span class="opacity-60">Last Zoom Level:</span><span id="soLastZoomVal">125%</span></div>
+        <div class="flex justify-between"><span class="opacity-60">Last Read:</span><span id="soLastTimeVal">Yesterday</span></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button id="btnSmartResume" class="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs flex items-center justify-center space-x-1.5 shadow-lg active:scale-95 transition-transform">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span>Resume Session</span>
+        </button>
+        <button id="btnSmartFresh" class="py-2.5 px-4 rounded-xl border border-divider hover:bg-black/5 dark:hover:bg-white/5 font-semibold text-xs flex items-center justify-center space-x-1.5 active:scale-95 transition-transform">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+          <span>Start from Page 1</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OBSIDIAN VAULT SETUP MODAL -->
+  <div id="vaultSetupModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface border border-divider max-w-md w-full rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center space-x-3 text-purple-500">
+        <i data-lucide="folder-cog" class="w-6 h-6"></i>
+        <h3 class="font-bold text-base text-current">Obsidian Vault Configuration</h3>
+      </div>
+      <p class="text-xs opacity-80 leading-relaxed">
+        Configured Vault: <strong class="text-purple-500">"AI notes"</strong>. On Windows 11, choose your Obsidian folder on disk for seamless zero-click saving. On your Galaxy S25 Ultra, clips open directly in the Obsidian mobile app via deep links!
+      </p>
+
+      <div class="space-y-3 pt-1">
+        <div>
+          <label class="text-[11px] opacity-70 block mb-1">Obsidian Vault Name:</label>
+          <input type="text" id="inputVaultName" value="AI notes" class="w-full bg-surface border border-divider rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-purple-500">
+        </div>
+
+        <!-- Desktop Disk Folder Button (Visible on Windows 11 Chromium) -->
+        <button id="btnSelectVaultFolder" class="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs flex items-center justify-center space-x-2 shadow-md">
+          <i data-lucide="folder-check" class="w-4 h-4"></i>
+          <span>Select "AI notes" Folder on Disk (Windows 11)</span>
+        </button>
+
+        <!-- Mobile Obsidian Status Card (Active on Galaxy S25 Ultra & Mobile Devices) -->
+        <div id="mobileVaultStatus" class="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 text-[11px] leading-relaxed text-emerald-700 dark:text-emerald-300">
+          <div class="flex items-center space-x-1.5 font-semibold mb-0.5">
+            <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500"></i>
+            <span>Galaxy S25 Ultra Obsidian Integration Active</span>
+          </div>
+          <p class="opacity-90">Notes & clips open directly inside your "AI notes" vault in the Obsidian Android app with zero friction.</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2">
+        <button id="btnCloseVaultModal" class="px-4 py-2 rounded-lg border border-divider text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GALAXY S25 ULTRA & MOBILE CONNECTION MODAL -->
+  <div id="mobileLinkModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="bg-surface border border-divider max-w-md w-full rounded-2xl p-5 shadow-2xl space-y-3.5">
+      <div class="flex items-center space-x-2.5 text-blue-500">
+        <i data-lucide="smartphone" class="w-5 h-5"></i>
+        <h3 class="font-bold text-sm text-current">Galaxy S25 Ultra Mobile Access</h3>
+      </div>
+      <p class="text-[11px] opacity-80 leading-relaxed">
+        Choose either of these copy-pastable links to open AuraPDF on your phone:
+      </p>
+
+      <!-- Option 1: Direct Public HTTPS Link (Works on any network, 5G or Wi-Fi) -->
+      <div class="p-2.5 bg-blue-500/10 rounded-xl border border-blue-500/30 space-y-1.5">
+        <div class="flex justify-between items-center text-[10px] font-semibold text-blue-600 dark:text-blue-300">
+          <span>🌐 OPTION 1: Public HTTPS (Any Network / 5G / Wi-Fi)</span>
+        </div>
+        <div class="flex items-center space-x-1.5">
+          <input type="text" id="mobileTunnelUrlInput" readonly value="https://aurapdf-aditya.loca.lt" class="font-mono font-semibold text-xs bg-surface border border-divider rounded px-2 py-1 w-full select-all text-blue-500">
+          <button id="btnCopyTunnelUrl" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shrink-0" title="Copy Public URL">Copy</button>
+        </div>
+        <p class="text-[9px] opacity-70">
+          *On first visit, if prompted for password, paste your IP: <strong class="text-blue-400 select-all font-mono">47.15.112.206</strong>
+        </p>
+      </div>
+
+      <!-- Option 2: Local Wi-Fi Link -->
+      <div class="p-2.5 bg-black/5 dark:bg-white/5 rounded-xl border border-divider space-y-1.5">
+        <div class="flex justify-between items-center text-[10px] font-semibold opacity-80">
+          <span>📶 OPTION 2: Local Wi-Fi (Same Network)</span>
+        </div>
+        <div class="flex items-center space-x-1.5">
+          <input type="text" id="mobileWifiUrlInput" readonly value="http://10.47.25.200:8000" class="font-mono text-xs bg-surface border border-divider rounded px-2 py-1 w-full select-all">
+          <button id="btnCopyMobileUrl" class="px-2.5 py-1 rounded bg-black/20 dark:bg-white/20 hover:bg-black/30 dark:hover:bg-white/30 font-medium text-xs shrink-0" title="Copy Wi-Fi URL">Copy</button>
+        </div>
+      </div>
+
+      <div class="space-y-1 text-[10px] opacity-75 pt-1">
+        <p><strong>💡 S25 Ultra Tip:</strong> In Android Chrome, tap <strong>⋮</strong> $\rightarrow$ <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong> to read in pristine full-screen PWA mode.</p>
+      </div>
+
+      <div class="flex justify-end pt-1">
+        <button id="btnCloseMobileModal" class="px-3 py-1.5 rounded-lg border border-divider text-xs font-medium hover:bg-black/5 dark:hover:bg-white/5">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPTS (With Cache-Busting Version v=8) -->
+  <script src="db.js?v=8"></script>
+  <script src="ocr-engine.js?v=8"></script>
+  <script src="obsidian.js?v=8"></script>
+  <script src="pdf-viewer.js?v=8"></script>
+  <script src="app.js?v=8"></script>
+  <script>
+    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.update());
+      });
+      navigator.serviceWorker.register('./sw.js?v=8').catch(err => console.log('SW registration skipped:', err));
+    }
+  </script>
+</body>
+</html>
